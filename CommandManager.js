@@ -1,3 +1,5 @@
+const Core = require("./Core");
+
 module.exports = class CommandManager {
 
     static printHelpMessage() {
@@ -17,11 +19,17 @@ module.exports = class CommandManager {
 
     async init(core, args) {
         this.core = core;
+        this.savePagePath = './result/';
 
         let headedMode = false;
+        let scrollPageLoadUrl = null;
+        let scrollPageLoadDirection = 'bottom';
+        let scrollPageLoadTimeout = 180000;
+        let savePageOnScrollLoadComplete = null;
 
         if(args.length === 0 || args[0] === '-h' || args[0] === '--help') {
             CommandManager.printHelpMessage();
+            return;
         }
 
         for(let i = 0; i < args.length; i++) {
@@ -31,17 +39,91 @@ module.exports = class CommandManager {
                     url = args[i + 1];
                 }
                 await this.manualProfileInput(url);
+                return;
             } else if(args[i] === '--headed') {
                 headedMode = true;
+            } else if(args[i] === '--scroll-page-load') {
+                // --scroll-page-load <url>
+                
+                if(i === args.length - 1) {
+                    throw new Error('Value is not set for --scroll-page-load <url> parameter.');
+                }
+
+                let url = args[i + 1];
+                if(url === undefined || !CommandManager.isValidURL(args[i + 1])) {
+                    throw new Error('Invalid url for --scroll-page-load parameter. Url: ' + args[i + 1]);
+                }
+
+                scrollPageLoadUrl = url;
+            } else if(args[i] === '--scroll-page-load-direction') {
+                // --scroll-page-load-direction <top|bottom>
+
+                if(i === args.length - 1) {
+                    throw new Error('Value is not set for --scroll-page-load-direction parameter. Available: <top|bottom>.');
+                } else if(!['top', 'bottom'].includes(args[i + 1])) {
+                    throw new Error('Invalid value for --scroll-page-load-direction paremeter. Avialable <top|bottom>. Given: ' + args[i + 1]);
+                }
+
+                scrollPageLoadDirection = args[i + 1];
+            } else if(args[i] === '--save-page-on-scroll-load-complete') {
+                // --save-page-on-scroll-load-complete [mhtml] default: mhtml
+
+                if(i === args.length - 1) {
+                    savePageOnScrollLoadComplete = 'mhtml';
+                } else if(['mhtml'].includes(args[i + 1])) {
+                    savePageOnScrollLoadComplete = args[i + 1];
+                } else {
+                    savePageOnScrollLoadComplete = 'mhtml';
+                }
+            } else if(args[i] === '--scroll-page-load-timeout') {
+                // --scroll-page-load-timeout <ms> default: 180000
+
+                if(i === args.length - 1) {
+                    throw new Error('Value is not set for --scroll-page-load-timeout <ms> parameter.');
+                }
+                
+                let delay = parseInt(args[i + 1]);
+                if(isNaN(delay) || delay <= 0) {
+                    throw new Error('Invalid value for --scroll-page-load-timeout parameter. Given: ' + args[i + 1]);
+                }
+
+                scrollPageLoadTimeout = delay;
             }
         }
+    
+        this.core.headless = !headedMode;
+
+        if(scrollPageLoadUrl !== null) {
+            await this.scrollPageLoad(scrollPageLoadUrl, scrollPageLoadDirection, scrollPageLoadTimeout, savePageOnScrollLoadComplete);
+        }
+
+        if(this.core.browser !== null) {
+            await this.core.browser.close();
+        }
     };
+
 
     async manualProfileInput(url) {
         this.core.headless = false;
         await this.core.createBrowserInstance();
         let page = await this.core.createNewPage(url);
-        this.core.enablePageLog(page);
+        Core.enablePageLog(page);
+    };
+
+    async scrollPageLoad(url, direction, timeout, savePageFormat) {
+        await this.core.createBrowserInstance();
+        let page = await this.core.createNewPage(url);
+        Core.enablePageLog(page);
+
+        await Core.scrollPageLoadUntilEnd(page, direction === 'bottom', timeout);
+        
+        if(savePageFormat !== null) {
+            if(savePageFormat === 'mhtml') {
+                await Core.savePageAsMHTML(page, this.savePagePath);
+            } else {
+                console.log(`Handler for saving page in ${savePageFormat} format not found.`);
+            }
+        }
     };
 
 };
