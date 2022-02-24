@@ -1,4 +1,4 @@
-const Core = require('./Core');
+const Core = require('./core/Core');
 const CommandManager = require('./CommandManager');
 
 (async () => {

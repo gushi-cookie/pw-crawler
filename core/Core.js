@@ -1,5 +1,6 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
+const DynamicContainerSafe = require('./DynamicContainerSafe');
 
 module.exports = class Core {
 
@@ -57,7 +58,14 @@ module.exports = class Core {
     };
 
 
-    static async scrollPageLoadUntilEnd(page, scrollDown, timeout) {
+    static async scrollPageLoadUntilEnd(page, scrollDown, timeout, dcsSelector = null, dcsInsertBegin = 'aftercontent', dcsStrict = false) {
+        let dcs = null;
+
+        if(dcsSelector !== null) {
+            dcs = new DynamicContainerSafe(page, dcsSelector, dcsInsertBegin, dcsStrict);
+            await dcs.serveContainer();
+        }
+        
         await page.evaluate((scrollDown, timeout) => {
             return new Promise((resolve, reject) => {
     
@@ -110,5 +118,7 @@ module.exports = class Core {
                 }, 30000);
             });
         }, scrollDown, timeout);
+
+        if(dcs !== null) await dcs.stopServe();
     };
 };

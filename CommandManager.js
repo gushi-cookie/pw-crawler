@@ -1,4 +1,4 @@
-const Core = require("./Core");
+const Core = require("./core/Core");
 
 module.exports = class CommandManager {
 
@@ -22,10 +22,15 @@ module.exports = class CommandManager {
         this.savePagePath = './result/';
 
         let headedMode = false;
+
         let scrollPageLoadUrl = null;
         let scrollPageLoadDirection = 'bottom';
         let scrollPageLoadTimeout = 180000;
         let savePageOnScrollLoadComplete = null;
+
+        let dynamicContainerSafe_Selector = null;
+        let dynamicContainer_InsertBegin = 'aftercontent';
+        let dynamicContainer_Strict = false;
 
         if(args.length === 0 || args[0] === '-h' || args[0] === '--help') {
             CommandManager.printHelpMessage();
@@ -88,13 +93,36 @@ module.exports = class CommandManager {
                 }
 
                 scrollPageLoadTimeout = delay;
+            } else if(args[i] === '--dynamic-container-safe') {
+                // --dynamic-container-safe <selector>
+
+                if(i === args.length - 1) {
+                    throw new Error('Value is not set for --dynamic-container-safe <selector>.');
+                }
+
+                dynamicContainerSafe_Selector = args[i + 1];
+            } else if(args[i] === '--dynamic-container-insert-begin') {
+                // --dynamic-container-insert-begin <beforecontent|aftercontent>  default: aftercontent
+
+                if(i === args.length - 1) {
+                    throw new Error('Value is not set for --dynamic-container-insert-begin <beforecontent|aftercontent>.');
+                }
+
+                if(!['beforecontent', 'aftercontent'].includes(args[i + 1])) {
+                    throw new Error('Invalid value for --dynamic-container-insert-begin parameter. Available: <beforecontent|aftercontent>. Given: ' + args[i + 1]);
+                }
+
+                dynamicContainer_InsertBegin = args[i + 1];
+            } else if(args[i] === '--dynamic-container-strict') {
+                // --dynamic-container-strict
+                dynamicContainer_Strict = true;
             }
         }
     
         this.core.headless = !headedMode;
 
         if(scrollPageLoadUrl !== null) {
-            await this.scrollPageLoad(scrollPageLoadUrl, scrollPageLoadDirection, scrollPageLoadTimeout, savePageOnScrollLoadComplete);
+            await this.scrollPageLoad(scrollPageLoadUrl, scrollPageLoadDirection, scrollPageLoadTimeout, savePageOnScrollLoadComplete, dynamicContainerSafe_Selector, dynamicContainer_InsertBegin, dynamicContainer_Strict);
         }
 
         if(this.core.browser !== null) {
@@ -110,12 +138,12 @@ module.exports = class CommandManager {
         Core.enablePageLog(page);
     };
 
-    async scrollPageLoad(url, direction, timeout, savePageFormat) {
+    async scrollPageLoad(url, direction, timeout, savePageFormat, dynamicContainerSafe_Selector, dynamicContainer_InsertBegin, dynamicContainer_Strict) {
         await this.core.createBrowserInstance();
         let page = await this.core.createNewPage(url);
         Core.enablePageLog(page);
 
-        await Core.scrollPageLoadUntilEnd(page, direction === 'bottom', timeout);
+        await Core.scrollPageLoadUntilEnd(page, direction === 'bottom', timeout, dynamicContainerSafe_Selector, dynamicContainer_InsertBegin, dynamicContainer_Strict);
         
         if(savePageFormat !== null) {
             if(savePageFormat === 'mhtml') {
