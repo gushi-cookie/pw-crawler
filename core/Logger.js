@@ -30,7 +30,8 @@ module.exports = class Logger {
         WHITE: '\x1b[47m',
     });
 
-    initLogger(moduleAbbr, enabled, moduleId = null, messageColor = '\x1b[30m', topLine = '', bottomLine = '') {
+
+    initLogger(moduleAbbr, enabled, moduleId = null, messageColor = '\x1b[37m', topLine = '', bottomLine = '') {
         this.moduleAbbr = moduleAbbr;
         this.enabled = enabled;
         this.moduleId = moduleId;
@@ -58,33 +59,33 @@ module.exports = class Logger {
         this.prefix = prefix;
     };
 
+
     log(message) {
         if(!this.enabled) return;
         console.log(`${this.topLine}${Logger.FontStyle.RESET}${this.messageColor}${this.prefix} ${message}${Logger.FontStyle.RESET}${this.bottomLine}`);
     };
 
-    async pageLogHandler(msg) {
-        const msgArgs = msg.args();
-
-        let message = '';
-        for(let i = 0; i < msgArgs.length; i++) {
-            if(i === 0) {
-                message = await msgArgs[i].jsonValue();
-            } else {
-                message += '\n' + await msgArgs[i].jsonValue();
-            }
-        }
-
-        console.log(`${this.topLine}${Logger.FontStyle.RESET}${this.prefix} ${message}${Logger.FontStyle.RESET}${this.bottomLine}`);
-    };
-    async pageErrorLogHandler(error) {
-        console.log(`${this.topLine}${Logger.FontStyle.RESET}${this.prefix} ${error}${LOgger.FontStyle.RESET}${this.bottomLine}`);
-    };
 
     enablePageLog(page) {
-        page.on('console', this.pageLogHandler);
+        page.on('console', async (msg) => {
+            let msgArgs = await msg.args();
+
+            let message = '';
+            for(let i = 0; i < msgArgs.length; i++) {
+                if(i === 0) {
+                    message = await msgArgs[i].jsonValue();
+                } else {
+                    message += '\n' + await msgArgs[i].jsonValue();
+                }
+            }
+
+            console.log(`${this.topLine}${Logger.FontStyle.RESET}${this.messageColor}${this.prefix} ${message}${Logger.FontStyle.RESET}${this.bottomLine}`);
+        });
     };
+    
     enablePageErrorLog(page) {
-        page.on('error', this.pageErrorLogHandler);
+        page.on('error', (error) => {
+            console.log(`${this.topLine}${Logger.FontStyle.RESET}${this.messageColor}${this.prefix} ${error}${LOgger.FontStyle.RESET}${this.bottomLine}`);
+        });
     };
 };

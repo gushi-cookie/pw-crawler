@@ -1,4 +1,5 @@
 const Core = require("./core/Core");
+const Logger = require("./core/Logger");
 
 module.exports = class CommandManager {
 
@@ -20,17 +21,20 @@ module.exports = class CommandManager {
     async init(core, args) {
         this.core = core;
         this.savePagePath = './result/';
+        this.url = null;
 
         let headedMode = false;
+        let manualProfileInput = false;
+        let savePageOnComplete_Format = null;
 
-        let scrollPageLoadUrl = null;
-        let scrollPageLoadDirection = 'bottom';
-        let scrollPageLoadTimeout = 180000;
-        let savePageOnScrollLoadComplete = null;
+        let scrollPageLoad_Selector = null;
+        let scrollPageLoad_Direction = 'bottom';
+        let scrollPageLoad_Timeout = 180000;
 
         let dynamicContainerSafe_Selector = null;
         let dynamicContainer_InsertBegin = 'aftercontent';
         let dynamicContainer_Strict = false;
+
 
         if(args.length === 0 || args[0] === '-h' || args[0] === '--help') {
             CommandManager.printHelpMessage();
@@ -39,119 +43,126 @@ module.exports = class CommandManager {
 
         for(let i = 0; i < args.length; i++) {
             if(args[i] === '--manual-profile-input') {
-                let url = 'https://google.com';
-                if(args.length - 1 > i && CommandManager.isValidURL(args[i + 1])) {
-                    url = args[i + 1];
-                }
-                await this.manualProfileInput(url);
-                return;
+                // --manual-profile-input
+                manualProfileInput = true;
             } else if(args[i] === '--headed') {
+                // --headed
                 headedMode = true;
             } else if(args[i] === '--scroll-page-load') {
-                // --scroll-page-load <url>
-                
-                if(i === args.length - 1) {
-                    throw new Error('Value is not set for --scroll-page-load <url> parameter.');
-                }
-
-                let url = args[i + 1];
-                if(url === undefined || !CommandManager.isValidURL(args[i + 1])) {
-                    throw new Error('Invalid url for --scroll-page-load parameter. Url: ' + args[i + 1]);
-                }
-
-                scrollPageLoadUrl = url;
-            } else if(args[i] === '--scroll-page-load-direction') {
-                // --scroll-page-load-direction <top|bottom>
-
-                if(i === args.length - 1) {
-                    throw new Error('Value is not set for --scroll-page-load-direction parameter. Available: <top|bottom>.');
-                } else if(!['top', 'bottom'].includes(args[i + 1])) {
-                    throw new Error('Invalid value for --scroll-page-load-direction paremeter. Avialable <top|bottom>. Given: ' + args[i + 1]);
-                }
-
-                scrollPageLoadDirection = args[i + 1];
-            } else if(args[i] === '--save-page-on-scroll-load-complete') {
-                // --save-page-on-scroll-load-complete [mhtml] default: mhtml
-
-                if(i === args.length - 1) {
-                    savePageOnScrollLoadComplete = 'mhtml';
-                } else if(['mhtml'].includes(args[i + 1])) {
-                    savePageOnScrollLoadComplete = args[i + 1];
+                // --scroll-page-load <selector>
+                if(args[i + 1] === undefined) {
+                    throw new Error('Invalid value for parameter --scroll-page-load. Format: <selector>. Passed: ' + args[i + 1]);
                 } else {
-                    savePageOnScrollLoadComplete = 'mhtml';
+                    scrollPageLoad_Selector = args[i + 1];
+                }
+            } else if(args[i] === '--scroll-page-load-direction') {
+                // --scroll-page-load-direction <top|bottom> default: bottom
+                if(!['top', 'bottom'].includes(args[i + 1])) {
+                    throw new Error('Invalid value for --scroll-page-load-direction paremeter. Format: <top|bottom>. Passed: ' + args[i + 1]);
+                } else {
+                    scrollPageLoad_Direction = args[i + 1];
+                }
+            } else if(args[i] === '--save-page-on-complete') {
+                // --save-page-on-complete [mhtml] default: mhtml
+                if(['mhtml'].includes(args[i + 1])) {
+                    savePageOnComplete_Format = args[i + 1];
+                } else {
+                    savePageOnComplete_Format = 'mhtml';
                 }
             } else if(args[i] === '--scroll-page-load-timeout') {
                 // --scroll-page-load-timeout <ms> default: 180000
-
-                if(i === args.length - 1) {
-                    throw new Error('Value is not set for --scroll-page-load-timeout <ms> parameter.');
+                let timeout = parseInt(args[i + 1]);
+                if(isNaN(timeout) || timeout <= 0) {
+                    throw new Error('Invalid value for --scroll-page-load-timeout parameter. Format: <ms>. Passed: ' + args[i + 1]);
                 }
-                
-                let delay = parseInt(args[i + 1]);
-                if(isNaN(delay) || delay <= 0) {
-                    throw new Error('Invalid value for --scroll-page-load-timeout parameter. Given: ' + args[i + 1]);
-                }
-
-                scrollPageLoadTimeout = delay;
+                scrollPageLoad_Timeout = timeout;
             } else if(args[i] === '--dynamic-container-safe') {
                 // --dynamic-container-safe <selector>
-
-                if(i === args.length - 1) {
-                    throw new Error('Value is not set for --dynamic-container-safe <selector>.');
+                if(args[i + 1] === undefined) {
+                    throw new Error('Invalid value for --dynamic-container-safe parameter. Format: <selector>. Passed: ' + args[i + 1]);
                 }
-
                 dynamicContainerSafe_Selector = args[i + 1];
             } else if(args[i] === '--dynamic-container-insert-begin') {
                 // --dynamic-container-insert-begin <beforecontent|aftercontent>  default: aftercontent
-
-                if(i === args.length - 1) {
-                    throw new Error('Value is not set for --dynamic-container-insert-begin <beforecontent|aftercontent>.');
-                }
-
                 if(!['beforecontent', 'aftercontent'].includes(args[i + 1])) {
-                    throw new Error('Invalid value for --dynamic-container-insert-begin parameter. Available: <beforecontent|aftercontent>. Given: ' + args[i + 1]);
+                    throw new Error('Invalid value for --dynamic-container-insert-begin parameter. Format: <beforecontent|aftercontent>. Passed: ' + args[i + 1]);
                 }
-
                 dynamicContainer_InsertBegin = args[i + 1];
             } else if(args[i] === '--dynamic-container-strict') {
                 // --dynamic-container-strict
                 dynamicContainer_Strict = true;
+            } else if(i === args.length - 1) {
+                if(!CommandManager.isValidURL(args[i])) {
+                    throw new Error('Invalid URL passed: ' + args[i]);
+                } else {
+                    this.url = args[i];
+                }
             }
         }
     
-        this.core.headless = !headedMode;
-
-        if(scrollPageLoadUrl !== null) {
-            await this.scrollPageLoad(scrollPageLoadUrl, scrollPageLoadDirection, scrollPageLoadTimeout, savePageOnScrollLoadComplete, dynamicContainerSafe_Selector, dynamicContainer_InsertBegin, dynamicContainer_Strict);
+        if(this.url === null) {
+            throw new Error('URL is not set.');
         }
 
-        if(this.core.browser !== null) {
-            await this.core.browser.close();
+
+
+        this.core.headless = manualProfileInput ? false : !headedMode;
+        await this.core.createBrowserInstance();
+        let page = await this.core.createNewPage(this.url);
+
+
+        let spl = null;
+        if(scrollPageLoad_Selector !== null) {
+            spl = await this.scrollPageLoad(page, scrollPageLoad_Selector, scrollPageLoad_Direction, scrollPageLoad_Timeout);
         }
+
+        let mpi_waitComplition = null;
+        if(manualProfileInput) {
+            mpi_waitComplition = await this.manualProfileInput(page);
+        }
+
+        let dcs = null;
+        if(dynamicContainerSafe_Selector !== null) {
+            dcs = await this.dynamicContainerSafe(page, dynamicContainerSafe_Selector, dynamicContainer_InsertBegin, dynamicContainer_Strict);
+        }
+
+
+        if(spl !== null) await spl.waitComplition();
+        if(mpi_waitComplition !== null) await mpi_waitComplition();
+        if(dcs !== null) await dcs.stopServe();
+        if(savePageOnComplete_Format !== null) await this.savePage(page, savePageOnComplete_Format);
+
+        await this.core.closeBrowser();
     };
 
 
-    async manualProfileInput(url) {
-        this.core.headless = false;
-        await this.core.createBrowserInstance();
-        let page = await this.core.createNewPage(url);
-        Core.enablePageLog(page);
+    async manualProfileInput(page) {
+        let waitComplition = await this.core.manualProfileInput(page);
+        return waitComplition;
     };
 
-    async scrollPageLoad(url, direction, timeout, savePageFormat, dynamicContainerSafe_Selector, dynamicContainer_InsertBegin, dynamicContainer_Strict) {
-        await this.core.createBrowserInstance();
-        let page = await this.core.createNewPage(url);
-        Core.enablePageLog(page);
+    async savePage(page, format) {
+        let logger = new Logger();
+        logger.initLogger('SP', true, null);
 
-        await Core.scrollPageLoadUntilEnd(page, direction === 'bottom', timeout, dynamicContainerSafe_Selector, dynamicContainer_InsertBegin, dynamicContainer_Strict);
-        
-        if(savePageFormat !== null) {
-            if(savePageFormat === 'mhtml') {
-                await Core.savePageAsMHTML(page, this.savePagePath);
-            } else {
-                console.log(`Handler for saving page in ${savePageFormat} format not found.`);
-            }
+        if(format === 'mhtml') {
+            await this.core.savePageAsMHTML(page, this.savePagePath);
+            logger.log(`Page saved at: ${this.savePagePath}`);
+        } else {
+            logger.log(`Couldn't save page in format ${format}. Handler not found.`);
         }
+    };
+
+    async scrollPageLoad(page, selector, direction, timeout) {
+        let spl = await this.core.scrollPageLoad(page, selector, direction === 'bottom', timeout);
+        await spl.enableScrollLoad();
+        return spl;
+    };
+
+    async dynamicContainerSafe(page, selector, insertBegin, strict) {
+        let dcs = await this.core.dynamicContainerSafe(page, selector, insertBegin, strict);
+        await dcs.serveContainer();
+        return dcs;
     };
 
 };
