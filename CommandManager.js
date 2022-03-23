@@ -1,4 +1,6 @@
 const Core = require("./core/Core");
+const FileSystem = require('fs');
+const Buffer = require('buffer');
 const Logger = require("./core/Logger");
 
 module.exports = class CommandManager {
@@ -34,6 +36,8 @@ module.exports = class CommandManager {
         let dynamicContainerSafe_Selector = null;
         let dynamicContainer_InsertBegin = 'aftercontent';
         let dynamicContainer_Strict = false;
+
+        let externalScript = null;
 
 
         if(args.length === 0 || args[0] === '-h' || args[0] === '--help') {
@@ -91,6 +95,18 @@ module.exports = class CommandManager {
             } else if(args[i] === '--dynamic-container-strict') {
                 // --dynamic-container-strict
                 dynamicContainer_Strict = true;
+            } else if(args[i] === '--external-script') {
+                // --external-script <path>
+                if(args[i + 1] === undefined) {
+                    throw new Error('Invalid value for --external-script parameter. Format: <path>. Passed: ' + args[i + 1]);
+                }
+                
+                let result = FileSystem.readFileSync(args[i + 1]);
+                if(result instanceof String) {
+                    externalScript = result;
+                } else if(result instanceof Buffer.Buffer) {
+                    externalScript = result.toString('utf-8');
+                }
             } else if(i === args.length - 1) {
                 if(!CommandManager.isValidURL(args[i])) {
                     throw new Error('Invalid URL passed: ' + args[i]);
@@ -108,7 +124,13 @@ module.exports = class CommandManager {
 
         this.core.headless = manualProfileInput ? false : !headedMode;
         await this.core.createBrowserInstance();
+
         let page = await this.core.createNewPage(this.url);
+        if(externalScript !== null) {
+            await page.evaluate((externalScript) => {
+                eval(externalScript);
+            }, externalScript);
+        }
 
 
         let spl = null;
