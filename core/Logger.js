@@ -68,24 +68,28 @@ module.exports = class Logger {
 
     enablePageLog(page) {
         page.on('console', async (msg) => {
-            let msgArgs = await msg.args();
+            let data = await msg.args();
 
-            let message = '';
-            for(let i = 0; i < msgArgs.length; i++) {
-                if(i === 0) {
-                    message = await msgArgs[i].jsonValue();
-                } else {
-                    message += '\n' + await msgArgs[i].jsonValue();
-                }
+            try {
+                data = JSON.parse(await data[0].jsonValue());
+            } catch(error) {
+                return;
             }
 
-            console.log(`${this.topLine}${Logger.FontStyle.RESET}${this.messageColor}${this.prefix} ${message}${Logger.FontStyle.RESET}${this.bottomLine}`);
+            // { moduleAbbr: 'abbr', moduleId?: 'b32xa...', message: 'text' }
+            if(data.moduleAbbr !== this.moduleAbbr || data.moduleId !== this.moduleId) {
+                return;
+            }
+
+            console.log(`${this.topLine}${Logger.FontStyle.RESET}${this.messageColor}${this.prefix} ${data.message}${Logger.FontStyle.RESET}${this.bottomLine}`);
         });
     };
     
-    enablePageErrorLog(page) {
+    static enablePageErrorLog(page) {
+        page.removeAllListeners('error');
+
         page.on('error', (error) => {
-            console.log(`${this.topLine}${Logger.FontStyle.RESET}${this.messageColor}${this.prefix} ${error}${LOgger.FontStyle.RESET}${this.bottomLine}`);
+            console.log(error);
         });
     };
 };
