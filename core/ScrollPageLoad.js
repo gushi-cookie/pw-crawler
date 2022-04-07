@@ -24,6 +24,8 @@ module.exports = class ScrollPageLoad {
 
                 if(window[dataProperty] === undefined) {
                     window[dataProperty] = {
+                        moduleAbbr: 'SPL',
+                        moduleId: dataId,
                         scroller_TimeoutId: null,
                         enabled: false,
                     };
@@ -39,7 +41,6 @@ module.exports = class ScrollPageLoad {
 
         this.logger.initLogger('SPL', true, this.dataId, Logger.FgColor.BLUE);
         this.logger.enablePageLog(this.page);
-        this.logger.enablePageErrorLog(this.page);
 
         this.logger.log('Instance initialized.');
     };
@@ -64,13 +65,21 @@ module.exports = class ScrollPageLoad {
             let lastScrollTimestamp = null;
             let target = document.querySelector(selector);
 
+            let log = function(message) {
+                console.log(JSON.stringify({
+                    moduleAbbr: window[dataProperty].moduleAbbr,
+                    moduleId: window[dataProperty].moduleId,
+                    message: message,
+                }));
+            };
+
             let randomIntFromInterval = function(min, max) {
                 // min and max included 
                 return Math.floor(Math.random() * (max - min + 1) + min)
             };
 
-            let scrollerRecursion = function() {
-                let scrollTo = scrollDown ? target.scrollTop + 400 : target.scrollTop - 400;
+            let scrollerRecursion = function(prevScrollHeight) {
+                let scrollTo = scrollDown ? target.scrollTop + 500 : target.scrollTop - 500;
                 let prevScrollTop = target.scrollTop;
 
                 target.scrollTo(0, scrollTo);
@@ -82,15 +91,19 @@ module.exports = class ScrollPageLoad {
                 if(lastScrollTimestamp !== null && new Date().getTime() - lastScrollTimestamp >= timeout) {
                     window[dataProperty].enabled = false;
                     window[dataProperty].scroller_TimeoutId = null;
-                    console.log('Scrolling has ended.');
+                    log('Scrolling has ended.');
                 } else if(window[dataProperty].enabled) {
-                    window[dataProperty].scroller_TimeoutId = setTimeout(scrollerRecursion, randomIntFromInterval(400, 1000));
+                    if(prevScrollHeight !== null && prevScrollHeight !== target.scrollHeight) {
+                        window[dataProperty].scroller_TimeoutId = setTimeout(scrollerRecursion, 2000, target.scrollHeight);
+                    } else {
+                        window[dataProperty].scroller_TimeoutId = setTimeout(scrollerRecursion, randomIntFromInterval(400, 1000), target.scrollHeight);
+                    }
                 }
             };
 
             window[dataProperty].enabled = true;
-            scrollerRecursion();
-            console.log('Scrolling has started');
+            scrollerRecursion(null);
+            log('Scrolling has started.');
 
         }, this.selector, this.direction, this.timeout, this.dataProperty);
     };
