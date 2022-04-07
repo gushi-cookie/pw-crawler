@@ -3,6 +3,7 @@ const fs = require('fs');
 const DynamicContainerSafe = require('./DynamicContainerSafe');
 const ScrollPageLoad = require('./ScrollPageLoad');
 const Logger = require('./Logger');
+const BulkContentCaching = require('./BulkContentCaching');
 
 module.exports = class Core {
 
@@ -74,5 +75,11 @@ module.exports = class Core {
     async dynamicContainerSafe(page, selector, insertBegin, strict) {
         let dcs = new DynamicContainerSafe(page, selector, insertBegin, strict);
         return dcs;
+    };
+
+    async bulkContentCaching(page, selector, cutSize, nodesLimit, insertBegin) {
+        let bcc = new BulkContentCaching(page, selector, cutSize, nodesLimit, insertBegin);
+        await bcc.init();
+        return bcc;
     };
 };

@@ -39,6 +39,11 @@ module.exports = class CommandManager {
 
         let externalScript = null;
 
+        let bulkContentCaching_Selector = null;
+        let bulkContentCaching_CutSize = 50;
+        let bulkContentCaching_Limit = 300;
+        let bulkContentCaching_InsertBegin = 'aftercontent';
+
 
         if(args.length === 0 || args[0] === '-h' || args[0] === '--help') {
             CommandManager.printHelpMessage();
@@ -107,6 +112,34 @@ module.exports = class CommandManager {
                 } else if(result instanceof Buffer.Buffer) {
                     externalScript = result.toString('utf-8');
                 }
+            } else if(args[i] === '--bulk-content-caching') {
+                // --bulk-content-caching <selector>
+                if(args[i + 1] === undefined) {
+                    throw new Error('Invalid value for --bulk-content-caching parameter. Format: <selector>. Passed: ' + args[i + 1]);
+                }
+                bulkContentCaching_Selector = args[i + 1];
+            } else if(args[i] === '--bulk-content-caching-cut-size') {
+                // --bulk-content-caching-cut-size <int>  default: 50
+                let cutSize = parseInt(args[i + 1]);
+                if(isNaN(cutSize) || cutSize < 0) {
+                    throw new Error('Invalid value for --bulk-content-caching-cut-size parameter. Format: <int>. Passed: ' + args[i + 1]);
+                }
+
+                bulkContentCaching_CutSize = cutSize;
+            } else if(args[i] === '--bulk-content-caching-limit') {
+                // --bulk-content-caching-limit <int>  default: 300
+                let limit = parseInt(args[i + 1]);
+                if(isNaN(limit) || limit < 0) {
+                    throw new Error('Invalid value for --bulk-content-caching-limit parameter. Format: <int>. Passed: ' + args[i + 1]);
+                }
+
+                bulkContentCaching_Limit = limit;
+            } else if(args[i] === '--bulk-content-caching-insert-begin') {
+                // --bulk-content-caching-insert-begin <beforecontent|aftercontent> default: aftercontent
+                if(!['beforecontent', 'aftercontent'].includes(args[i + 1])) {
+                    throw new Error('Invalid value for --bulk-content-caching-insert-begin parameter. Format: <beforecontent|aftercontent>. Passed: ' + args[i + 1]);
+                }
+                bulkContentCaching_InsertBegin = args[i + 1];
             } else if(i === args.length - 1) {
                 if(!CommandManager.isValidURL(args[i])) {
                     throw new Error('Invalid URL passed: ' + args[i]);
@@ -148,10 +181,15 @@ module.exports = class CommandManager {
             dcs = await this.dynamicContainerSafe(page, dynamicContainerSafe_Selector, dynamicContainer_InsertBegin, dynamicContainer_Strict);
         }
 
+        let bcc = null;
+        if(bulkContentCaching_Selector !== null) {
+            bcc = await this.bulkContentCaching(page, bulkContentCaching_Selector, bulkContentCaching_CutSize, bulkContentCaching_Limit, bulkContentCaching_InsertBegin);
+        }
 
         if(spl !== null) await spl.waitComplition();
         if(mpi_waitComplition !== null) await mpi_waitComplition();
         if(dcs !== null) await dcs.stopServe();
+        if(bcc !== null) { await bcc.stopCaching(); await bcc.dumpCache(); }
         if(savePageOnComplete_Format !== null) await this.savePage(page, savePageOnComplete_Format);
 
         await this.core.closeBrowser();
@@ -185,6 +223,12 @@ module.exports = class CommandManager {
         let dcs = await this.core.dynamicContainerSafe(page, selector, insertBegin, strict);
         await dcs.serveContainer();
         return dcs;
+    };
+
+    async bulkContentCaching(page, selector, cutSize, limit, insertBegin) {
+        let bcc = await this.core.bulkContentCaching(page, selector, cutSize, limit, insertBegin);
+        await bcc.startCaching();
+        return bcc;
     };
 
 };
