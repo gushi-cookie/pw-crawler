@@ -21,6 +21,9 @@ module.exports = class CommandManager {
 
 
     async init(core, args) {
+        this.logger = new Logger();
+        this.logger.initLogger('CMD', true);
+
         this.core = core;
         this.savePagePath = './result/';
         this.url = null;
@@ -189,8 +192,8 @@ module.exports = class CommandManager {
         if(spl !== null) await spl.waitComplition();
         if(mpi_waitComplition !== null) await mpi_waitComplition();
         if(dcs !== null) await dcs.stopServe();
-        if(bcc !== null) { await bcc.stopCaching(); await bcc.dumpCache(); }
-        if(savePageOnComplete_Format !== null) await this.savePage(page, savePageOnComplete_Format);
+        if(bcc !== null) await bcc.stopCaching();
+        if(savePageOnComplete_Format !== null) await this.savePage(page, savePageOnComplete_Format, bcc);
 
         await this.core.closeBrowser();
     };
@@ -201,15 +204,28 @@ module.exports = class CommandManager {
         return waitComplition;
     };
 
-    async savePage(page, format) {
-        let logger = new Logger();
-        logger.initLogger('SP', true, null);
-
+    async savePage(page, format, bcc) {
         if(format === 'mhtml') {
-            await this.core.savePageAsMHTML(page, this.savePagePath);
-            logger.log(`Page saved at: ${this.savePagePath}`);
+
+            if(bcc !== null) {
+                if(await bcc.shouldDumpCacheFully()) {
+                    await bcc.dumpCache();
+                    await this.core.pageSaver.savePageAsMHTML(page, this.savePagePath);
+                } else {
+                    this.logger.log('Disabling internet connection to prevent cache parts from corrupt.');
+                    let session = await Core.setPageOffline(page);
+
+                    await this.core.pageSaver.savePagesAsMHTML_BCC(page, bcc, this.savePagePath, 'Part');
+                    
+                    this.logger.log('Enabling internet connection.');
+                    await session.detach();
+                }
+            } else {
+                await this.core.pageSaver.savePageAsMHTML(page, this.savePagePath);
+            }
+
         } else {
-            logger.log(`Couldn't save page in format ${format}. Handler not found.`);
+            this.logger.log(`Couldn't save page in format ${format}. Handler not found.`);
         }
     };
 

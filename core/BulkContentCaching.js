@@ -13,6 +13,8 @@ module.exports = class BulkContentCaching {
 
         this.dataId = null;
         this.dataProperty = null;
+
+        this.cacheDumpLimit = 4000;
     };
 
     async init() {
@@ -107,6 +109,91 @@ module.exports = class BulkContentCaching {
                 setTimeout(inspectorRecursion, 10000);
             });
         }, this.dataProperty);
+    };
+
+    async dumpCachePart(partIndex) {
+        return await this.page.evaluate((partIndex, dumpLimit, dataProperty) => {
+            return new Promise((resolve, reject) => {
+
+                let log = function(message) {
+                    console.log(JSON.stringify({
+                        moduleAbbr: window[dataProperty].moduleAbbr,
+                        moduleId: window[dataProperty].moduleId,
+                        message: message,
+                    }));
+                };
+
+                let dumpCache = function() {
+                    let activeNodes = new Array();
+                    cachePart.forEach((node) => {
+                        activeNodes.push(node.cloneNode(true));
+                    });
+
+                    window[dataProperty].target.innerHTML = '';
+                    activeNodes.forEach((node) => {
+                        window[dataProperty].target.appendChild(node);
+                    });
+                };
+
+                let inspectorRecursion = function() {
+                    triesCount++;
+
+                    let activeNodes = [].slice.call(window[dataProperty].target.childNodes);
+
+                    if(cachePart.length !== activeNodes.length) {
+                        log(`Try ${triesCount}`);
+                        dumpCache();
+                        setTimeout(inspectorRecursion, 10000);
+                        return;
+                    }
+
+                    for(let i = 0; i < activeNodes.length; i++) {
+                        if(!activeNodes[i].isEqualNode(cachePart[i])) {
+                            log(`Try ${triesCount}`);
+                            dumpCache();
+                            setTimeout(inspectorRecursion, 10000);
+                            return;
+                        }
+                    }
+
+                    log(`Successfully dumped ${cachePart.length} nodes.`);
+                    resolve(true);
+                };
+
+
+                let cache = window[dataProperty].cache;
+                let cachePart = cache.slice(dumpLimit * partIndex, dumpLimit * (partIndex + 1));
+                let triesCount = 0;
+
+                if(cachePart.length === 0) {
+                    resolve(false);
+                    return;
+                }
+
+                log(`Dumping cache part. Part size: ${cachePart.length}.`);
+                dumpCache();
+                setTimeout(inspectorRecursion, 10000);
+            });
+
+        }, partIndex, this.cacheDumpLimit, this.dataProperty);
+    };
+
+    async shouldDumpCacheFully() {
+        let cacheSize = await this.page.evaluate((dataProperty) => {
+            let cache = window[dataProperty].cache;
+            return cache === null ? 0 : cache.length;
+        }, this.dataProperty);
+
+        return cacheSize < this.cacheDumpLimit;
+    };
+
+    async cachePartsSummary() {
+        let cacheSize = await this.page.evaluate((dataProperty) => {
+            let cache = window[dataProperty].cache;
+            return cache === null ? 0 : cache.length;
+        }, this.dataProperty);
+
+        return Math.ceil(cacheSize / this.cacheDumpLimit);
     };
 
     async startCaching() {

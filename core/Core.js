@@ -1,9 +1,9 @@
 const puppeteer = require('puppeteer');
-const fs = require('fs');
 const DynamicContainerSafe = require('./DynamicContainerSafe');
 const ScrollPageLoad = require('./ScrollPageLoad');
 const Logger = require('./Logger');
 const BulkContentCaching = require('./BulkContentCaching');
+const PageSaver = require('./PageSaver');
 
 module.exports = class Core {
 
@@ -14,6 +14,8 @@ module.exports = class Core {
         this.headless = true;
         this.defaultViewport = {width: 1366, height: 768};
         this.args = ['--user-data-dir=./profile'];
+
+        this.pageSaver = new PageSaver();
     };
 
 
@@ -40,6 +42,19 @@ module.exports = class Core {
     };
 
 
+    static async setPageOffline(page) {
+        let session = await page.target().createCDPSession();
+        await session.send('Network.emulateNetworkConditions', {
+            offline: true,
+            latency: 0,
+            downloadThroughput: 0,
+            uploadThroughput: 0,
+        });
+
+        return session;
+    };
+
+
     async manualProfileInput(page) {
         let logger = new Logger();
         logger.initLogger('MPI', true);
@@ -57,13 +72,6 @@ module.exports = class Core {
 
         logger.log('MPI mode has started');
         return waitComplition;
-    };
-
-    async savePageAsMHTML(page, path) {
-        let cdpSession = await page.target().createCDPSession();
-        let { data } = await cdpSession.send('Page.captureSnapshot');
-        fs.writeFileSync(path + `${await page.title()}.mhtml`, data);
-        await cdpSession.detach();
     };
 
     async scrollPageLoad(page, selector, scrollDown, timeout) {
