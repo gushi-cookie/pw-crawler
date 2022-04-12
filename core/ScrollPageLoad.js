@@ -105,7 +105,7 @@ module.exports = class ScrollPageLoad {
             scrollerRecursion(null);
             log('Scrolling has started.');
 
-        }, this.selector, this.direction, this.timeout, this.dataProperty);
+        }, this.selector, this.scrollDown, this.timeout, this.dataProperty);
     };
 
     async disableScrollLoad() {
