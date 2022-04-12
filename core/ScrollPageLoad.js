@@ -79,7 +79,7 @@ module.exports = class ScrollPageLoad {
             };
 
             let scrollerRecursion = function(prevScrollHeight) {
-                let scrollTo = scrollDown ? target.scrollTop + 500 : target.scrollTop - 500;
+                let scrollTo = scrollDown ? target.scrollTop + 700 : target.scrollTop - 700;
                 let prevScrollTop = target.scrollTop;
 
                 target.scrollTo(0, scrollTo);
