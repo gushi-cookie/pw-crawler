@@ -7,6 +7,12 @@ module.exports = class PageSaver {
         this.logger.initLogger('PS', true, null, Logger.FgColor.MAGENTA);
     };
 
+    viewPath(path) {
+        if(!fs.existsSync(path)) {
+            fs.mkdirSync(path, { recursive: true });
+        }
+    };
+
     async savePageAsMHTML(page, path, fileName = null) {
         let cdpSession = await page.target().createCDPSession();
         let { data } = await cdpSession.send('Page.captureSnapshot');
@@ -15,6 +21,7 @@ module.exports = class PageSaver {
             fileName = await page.title();
         }
 
+        this.viewPath(path);
         fs.writeFileSync(path + `${fileName}.mhtml`, data);
         await cdpSession.detach();
 

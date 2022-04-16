@@ -25,7 +25,7 @@ module.exports = class CommandManager {
         this.logger.initLogger('CMD', true);
 
         this.core = core;
-        this.savePagePath = './result/';
+        this.savePagePath = process.cwd() + '/result/';
         this.url = null;
 
         let headedMode = false;

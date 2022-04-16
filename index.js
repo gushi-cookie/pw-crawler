@@ -1,5 +1,5 @@
-const Core = require('./core/Core');
-const CommandManager = require('./CommandManager');
+const Core = require('./src/core/Core');
+const CommandManager = require('./src/CommandManager');
 
 (async () => {
     const core = new Core();
