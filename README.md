@@ -2,7 +2,7 @@
 PWCrawler is a nodejs script for crawling over web pages and scrapping data from them. Most features are intended for working with nodes of a page. Here are common processes, the programm does with nodes: caching, inspecing, dumping, saving, restoring, hiding, scrolling.
 
 # Prerequisites
-Before using this tool, you need `nodejs` and `Chromium` or `Google Chrome` to be installed on your device.
+Before using this tool you need `npm`, `nodejs` and `Chromium` or `Google Chrome` to be installed on your device.
 
 # Installation
 1. Get the repo on your device
@@ -14,7 +14,11 @@ Before using this tool, you need `nodejs` and `Chromium` or `Google Chrome` to b
    ```
    cd pw-crawler
    ```
-3. Run script in the first time for initializing Chromium profile
+3. Install node dependencies
+   ```
+   npm install
+   ```
+4. Run script in the first time for initializing Chromium profile
    ```
    node index.js --manual-profile-input 'https://google.com'
    ```
