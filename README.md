@@ -28,10 +28,10 @@ After these steps in the project directory `profile` folder must be created. Thi
 
 # Usage
 ## Modes
-**Headed** - in this mode a browser window is open.
-**SPL** - Scroll Page Load mode. Scrolls a specific element's content until its with timeout.
-**BCC** - what means Bulk Content Caching. This mode stores the content of the specific element in a cache. As soon, the element's nodes size goes over the limit, most early nodes are being hidden, within the limit. If some data in the element don't equal to its cache representation, then the element's content are being replaced by cached ones, within the limit. 
-**DCS** - Dynamic Container Safe mode works like BCC mode, but doesn't hide nodes.
+**Headed** - in this mode a browser window is open.  
+**SPL** - Scroll Page Load mode. Scrolls a specific element's content until its with timeout.  
+**BCC** - what means Bulk Content Caching. This mode stores the content of the specific element in a cache. As soon, the element's nodes size goes over the limit, most early nodes are being hidden, within the limit. If some data in the element don't equal to its cache representation, then the element's content are being replaced by cached ones, within the limit.  
+**DCS** - Dynamic Container Safe mode works like BCC mode, but doesn't hide nodes.  
 
 ## Arguments
 * `-h|-help` - print the help message.
@@ -54,7 +54,9 @@ After these steps in the project directory `profile` folder must be created. Thi
 **Scrolling a content of a page**
 ```Shell
 # You may replace the URL with another one. For instance, a search result from google images... may be trees search.
-node index.js --scroll-page-load 'html' --scroll-page-load-timeout 10000 'https://google.com'
+node index.js --scroll-page-load 'html' \
+              --scroll-page-load-timeout 10000 \
+              'https://google.com'
 ```
 
 **Caching most content of a page and saving it in mhtml format**
